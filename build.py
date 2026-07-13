@@ -8,14 +8,17 @@ Input (đặt trong thư mục data/, ĐÚNG TÊN FILE như bên dưới — ghi
     data/class_info.xlsx      <- file "All_Branch_Class_Info" export từ LMS (sheet "Class Info")
     data/student_issue.xlsx   <- file "LMS_Student_Issue" export từ LMS (sheet "Student Issue")
     data/grade_report.xlsx    <- file "BC điểm CK" export từ LMS (sheet "Export")
+    data/holidays.xlsx        <- file "Ngày nghỉ lễ" của công ty (cột A = ngày nghỉ, sheet "Export")
 
-    Cả 3 file đều KHÔNG bắt buộc phải có mặt — nếu thiếu file nào, script vẫn chạy,
-    chỉ là phần dữ liệu tương ứng (nhận xét từ nguồn đó) sẽ không có.
+    Cả 4 file đều KHÔNG bắt buộc phải có mặt — nếu thiếu file nào, script vẫn chạy,
+    chỉ là phần dữ liệu tương ứng sẽ không có (riêng thiếu holidays.xlsx sẽ dùng danh sách
+    dự phòng có sẵn trong code, xem HOLIDAYS_FALLBACK bên dưới).
 
 Output:
     index.html   <- file dashboard hoàn chỉnh, deploy qua GitHub Pages
 
-Muốn thêm ngày nghỉ lễ cho các năm sau: sửa trong hàm build_vn_holidays() bên dưới.
+Muốn cập nhật lịch nghỉ lễ năm mới: CHỈ CẦN thay file data/holidays.xlsx bằng file mới của công ty,
+không cần sửa code (script tự đọc lại từ file mỗi lần build).
 Muốn thêm/sửa mapping Vùng - Chi nhánh - AS: sửa biến REGION_MAPPING_RAW bên dưới.
 """
 
@@ -39,6 +42,7 @@ DATA_DIR = "data"
 CLASS_INFO_PATH = f"{DATA_DIR}/class_info.xlsx"
 STUDENT_ISSUE_PATH = f"{DATA_DIR}/student_issue.xlsx"
 GRADE_REPORT_PATH = f"{DATA_DIR}/grade_report.xlsx"
+HOLIDAYS_PATH = f"{DATA_DIR}/holidays.xlsx"
 TEMPLATE_PATH = "template.html"
 OUTPUT_PATH = "index.html"
 
@@ -105,35 +109,50 @@ def build_region_map():
 
 # =====================================================================================
 # 2. LỊCH NGHỈ LỄ CHÍNH THỨC VIỆT NAM
-#    Thêm năm mới vào đây khi có lịch nghỉ chính thức được công bố (thường công bố
-#    trước ~1-2 tháng). Định dạng: mỗi dòng là 1 khoảng ngày nghỉ liên tục.
+#    Thêm năm mới vào đây khi công ty công bố lịch nghỉ chính thức của năm đó
+#    (nguồn: file "Ngày nghỉ lễ.xlsx" do công ty cung cấp — không phải lịch nghỉ chung
+#    của nhà nước, vì công ty có thể nghỉ ít/nhiều hơn tuỳ năm).
 # =====================================================================================
 
+# Danh sách dự phòng (dùng khi KHÔNG có file data/holidays.xlsx) — chính xác đến ngày build.py này
+# được viết. Khuyến khích luôn cập nhật qua file data/holidays.xlsx thay vì sửa danh sách này.
+HOLIDAYS_FALLBACK = [
+    "2023-01-01", "2023-04-29", "2023-04-30", "2023-05-01", "2023-05-02", "2023-05-03",
+    "2023-09-01", "2023-09-02", "2023-09-03", "2023-09-04",
+    "2024-01-01", "2024-02-08", "2024-02-09", "2024-02-10", "2024-02-11", "2024-02-12",
+    "2024-02-13", "2024-02-14", "2024-04-30", "2024-05-01", "2024-05-02", "2024-05-03", "2024-09-01",
+    "2025-01-01", "2025-01-25", "2025-01-26", "2025-01-27", "2025-01-28", "2025-01-29",
+    "2025-01-30", "2025-01-31", "2025-02-01", "2025-02-02", "2025-04-07", "2025-04-30",
+    "2025-05-01", "2025-08-30", "2025-08-31", "2025-09-01", "2025-09-02",
+    "2026-01-01", "2026-02-14", "2026-02-15", "2026-02-16", "2026-02-17", "2026-02-18",
+    "2026-02-19", "2026-02-20", "2026-02-21", "2026-02-22", "2026-02-23", "2026-04-26",
+    "2026-04-27", "2026-04-30", "2026-05-01", "2026-05-02", "2026-05-03", "2026-09-01", "2026-09-02",
+]
+
+
 def build_vn_holidays():
-    ranges = [
-        # 2025 (Ất Tỵ)
-        ("2025-01-01", "2025-01-01"),  # Tết Dương lịch
-        ("2025-01-25", "2025-02-02"),  # Tết Nguyên đán (9 ngày)
-        ("2025-04-07", "2025-04-07"),  # Giỗ Tổ Hùng Vương
-        ("2025-04-30", "2025-05-04"),  # 30/4 - 1/5 (5 ngày)
-        ("2025-08-30", "2025-09-02"),  # Quốc khánh (4 ngày)
-        # 2026 (Bính Ngọ)
-        ("2026-01-01", "2026-01-01"),  # Tết Dương lịch
-        ("2026-02-14", "2026-02-22"),  # Tết Nguyên đán (9 ngày)
-        ("2026-04-25", "2026-04-27"),  # Giỗ Tổ Hùng Vương (nghỉ bù do trùng CN)
-        ("2026-04-30", "2026-05-03"),  # 30/4 - 1/5 (4 ngày)
-        ("2026-08-29", "2026-09-02"),  # Quốc khánh (5 ngày)
-        ("2026-11-24", "2026-11-24"),  # Ngày Văn hoá Việt Nam (mới, từ 1/7/2026)
-        # TODO: thêm lịch nghỉ 2027 khi có công bố chính thức
-    ]
+    """Đọc ngày nghỉ lễ từ data/holidays.xlsx (cột A, sheet 'Export' hoặc sheet đầu tiên).
+    Nếu không tìm thấy file, dùng HOLIDAYS_FALLBACK để dashboard vẫn build được."""
+    try:
+        wb = openpyxl.load_workbook(HOLIDAYS_PATH, data_only=True)
+    except FileNotFoundError:
+        print(f"[CẢNH BÁO] Không tìm thấy {HOLIDAYS_PATH} — dùng danh sách ngày nghỉ dự phòng có sẵn trong code.")
+        return set(datetime.strptime(d, "%Y-%m-%d").date() for d in HOLIDAYS_FALLBACK)
+
+    ws = wb["Export"] if "Export" in wb.sheetnames else wb[wb.sheetnames[0]]
     holidays = set()
-    for start_str, end_str in ranges:
-        s = datetime.strptime(start_str, "%Y-%m-%d").date()
-        e = datetime.strptime(end_str, "%Y-%m-%d").date()
-        d = s
-        while d <= e:
-            holidays.add(d)
-            d += timedelta(days=1)
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        val = row[0] if row else None
+        if val is None:
+            continue
+        if hasattr(val, "date"):
+            holidays.add(val.date())
+        elif isinstance(val, str):
+            try:
+                holidays.add(datetime.strptime(val.strip(), "%Y-%m-%d").date())
+            except ValueError:
+                continue  # bỏ qua dòng không parse được (VD dòng "No filters applied" ở cuối file)
+    print(f"[holidays] Đọc được {len(holidays)} ngày nghỉ lễ từ {HOLIDAYS_PATH}.")
     return holidays
 
 
@@ -468,8 +487,12 @@ def main():
 
     classes_json = json.dumps(classes, ensure_ascii=False)
     comments_json = json.dumps(comments_index, ensure_ascii=False, separators=(",", ":"))
+    holidays_json = json.dumps(sorted(d.isoformat() for d in VN_HOLIDAYS), ensure_ascii=False)
 
-    output = template.replace("__DATA_JSON__", classes_json).replace("__COMMENTS_JSON__", comments_json)
+    output = (template
+              .replace("__DATA_JSON__", classes_json)
+              .replace("__COMMENTS_JSON__", comments_json)
+              .replace("__HOLIDAYS_JSON__", holidays_json))
 
     with open(OUTPUT_PATH, "w", encoding="utf-8") as f:
         f.write(output)
